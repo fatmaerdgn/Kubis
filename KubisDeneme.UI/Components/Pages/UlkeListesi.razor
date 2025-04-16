@@ -1,0 +1,66 @@
+﻿@page "/ulke-listesi"
+@using KubisDeneme.Api.Controllers
+@using System.Net.Http.Json
+@using System.Collections.Generic
+@using KubisDeneme.DTO
+
+@inject HttpClient Http
+
+<h3>Ülke Listesi</h3>
+
+<Grid TItem="UlkeDTO"
+Class="table table-hover table-bordered table-striped"
+DataProvider="UlkeDataProvider"
+AllowPaging="true"
+PageSize="5"
+Responsive="true">
+
+    <GridColumns>
+        <GridColumn TItem="UlkeDTO" HeaderText="Ad">
+            @context.Ad
+        </GridColumn>
+
+        <GridColumn TItem="UlkeDTO" HeaderText="Eklenme Tarihi">
+            @context.EklenmeTarihi?.ToLocalTime().ToString("dd/MM/yyyy")
+        </GridColumn>
+
+        <GridColumn TItem="UlkeDTO" HeaderText="Güncellenme Tarihi">
+            @context.GuncellenmeTarihi?.ToLocalTime().ToString("dd/MM/yyyy")
+        </GridColumn>
+
+        <GridColumn TItem="UlkeDTO" HeaderText="Güncelle">
+            <Button Type="ButtonType.Link" Color="ButtonColor.Primary" Size="ButtonSize.ExtraLarge" To="@($"/ulke-guncelle/{context.Id}")">Güncelle</Button>
+        </GridColumn>
+    </GridColumns>
+</Grid>
+
+<div class="d-grid gap-1 mb-4">
+    <Button Type="ButtonType.Link" Color="ButtonColor.Success" Size="ButtonSize.ExtraLarge" To="/ulke-ekle">Ülke Ekle</Button>
+</div>
+
+<div class="d-grid gap-1 mb-4">
+    <Button Type="ButtonType.Link" Color="ButtonColor.Info" Size="ButtonSize.ExtraLarge" To="">Ana Sayfa</Button>
+</div>
+
+@code {
+
+    private List<UlkeDTO>? ulke;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task<GridDataProviderResult<UlkeDTO>> UlkeDataProvider(GridDataProviderRequest<UlkeDTO> request)
+    {
+        if (ulke is null)
+            ulke = await Http.GetFromJsonAsync<List<UlkeDTO>>("api/Ulke");
+
+        return await Task.FromResult(request.ApplyTo(ulke));
+    }
+
+    private async Task LoadData()
+    {
+        ulke = await Http.GetFromJsonAsync<List<UlkeDTO>>("api/Ulke");
+    }
+}

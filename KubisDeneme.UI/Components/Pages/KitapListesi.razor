@@ -1,0 +1,126 @@
+﻿@page "/kitap-listesi"
+@using KubisDeneme.Api.Controllers
+@using System.Net.Http.Json
+@using System.Collections.Generic
+@using KubisDeneme.DTO
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<h3>Kitap Listesi</h3>
+
+<Grid TItem="KitapDTO"
+      Class="table table-hover table-bordered table-striped"
+      DataProvider="KitaplarDataProvider"
+      AllowPaging="true"
+      PageSize="5"
+      Responsive="true">
+
+    <GridColumns>
+        <GridColumn TItem="KitapDTO" HeaderText="Ad">
+            @context.KitapAdi
+        </GridColumn>
+        <GridColumn TItem="KitapDTO" HeaderText="Sayfa Sayısı" HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+            @context.SayfaSayisi
+        </GridColumn>
+        <GridColumn TItem="KitapDTO" HeaderText="İlk Yayın Yılı" HeaderTextAlignment="Alignment.Center" TextAlignment="Alignment.Center">
+            @context.İlkYayinYili
+        </GridColumn>
+        <GridColumn TItem="KitapDTO" HeaderText="ISBN">
+            @context.ISBN
+        </GridColumn>
+        <GridColumn TItem="KitapDTO" HeaderText="Eklenme Tarihi">
+            @context.EklenmeTarihi?.ToLocalTime().ToString("dd/MM/yyyy")
+        </GridColumn>
+        <GridColumn TItem="KitapDTO" HeaderText="Güncellenme Tarihi">
+            @context.GuncellenmeTarihi?.ToLocalTime().ToString("dd/MM/yyyy")
+        </GridColumn>
+
+        <GridColumn TItem="KitapDTO" HeaderText="Yazarlar">
+            @if (context.KitapYazarlar != null)
+            {
+                <ul>
+                    @foreach (var yazar in context.KitapYazarlar)
+                    {
+                        <li> <div> @yazar.Yazar?.Ad </div> </li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <span>Yazar bilgisi yok</span>
+            }
+        </GridColumn>
+        <GridColumn TItem="KitapDTO" HeaderText="Kitap Türleri">
+            @if (context.KitapKitapTurleri != null)
+            {
+                <ul>
+                    @foreach (var tur in context.KitapKitapTurleri)
+                    {
+                        <li> <div> @tur.KitapTuru?.Ad</div> </li>
+                    }
+                </ul>
+            }
+            else
+            {
+                <span>Tür bilgisi yok</span>
+            }
+        </GridColumn>
+        <GridColumn TItem="KitapDTO" HeaderText="Güncelle">
+            <Button Type="ButtonType.Link" Color="ButtonColor.Primary" Size="ButtonSize.ExtraLarge" To="@($"kitap-guncelle/{context.Id}")">Kitap Güncelle</Button>
+        </GridColumn>
+        <GridColumn TItem="KitapDTO" HeaderText="Sil">
+            <Button Type="ButtonType.Link" Color="ButtonColor.Danger" Size="ButtonSize.ExtraLarge" @onclick="() => Sil(context.Id.Value)">Kayıt Sil</Button>
+        </GridColumn>
+    </GridColumns>
+</Grid>
+
+<div class="d-grid gap-1 mb-4">
+    <Button Type="ButtonType.Link" Color="ButtonColor.Success" Size="ButtonSize.ExtraLarge" To="/kitap-ekle">Kitap Ekle</Button>
+</div>
+
+<div class="d-grid gap-1 mb-4">
+    <Button Type="ButtonType.Link" Color="ButtonColor.Info" Size="ButtonSize.ExtraLarge" To="">Ana Sayfa</Button>
+</div>
+
+@code {
+    private List<KitapDTO>? kitaplar;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task<GridDataProviderResult<KitapDTO>> KitaplarDataProvider(GridDataProviderRequest<KitapDTO> request)
+    {
+        if (kitaplar is null)
+            kitaplar = await Http.GetFromJsonAsync<List<KitapDTO>>("api/Kitap");
+
+        return await Task.FromResult(request.ApplyTo(kitaplar));
+    }
+
+    private async Task LoadData()
+    {
+        kitaplar = await Http.GetFromJsonAsync<List<KitapDTO>>("api/Kitap");
+    }
+
+    private async Task Sil(int id)
+    {
+        if (await JSRuntime.InvokeAsync<bool>("confirm", new object[] { "Kitabı silmek istediğinizden emin misiniz?" }))
+        {
+            var response = await Http.DeleteAsync($"api/Kitap?id={id}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Kitap başarıyla silindi!");
+                kitaplar = null;
+                NavigationManager.NavigateTo("/kitap-listesi", true);                      
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Kitap silinirken bir hata oluştu!");
+            }
+        }
+    }
+}

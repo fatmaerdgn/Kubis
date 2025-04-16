@@ -1,0 +1,43 @@
+﻿<div class="top-row ps-3 navbar navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand" href="">KubisDeneme.UI</a>
+    </div>
+</div>
+
+<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+
+<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <nav class="nav flex-column">
+        <div class="nav-item px-3">
+            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
+                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="bi bi-journal nav-link" href="/kitap-listesi">
+                <br />
+                <span aria-hidden="true"></span>Kitaplar
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="bi bi-person nav-link" href="/yazar-listesi">
+                <span aria-hidden="true"></span> Yazarlar
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="bi bi-journal-bookmark nav-link" href="/kitapturu-listesi">
+                <span aria-hidden="true"></span> Kitap Türü
+            </NavLink>
+        </div>
+
+        <div class="nav-item px-3">
+            <NavLink class="bi bi-globe nav-link" href="/ulke-listesi">
+                <span aria-hidden="true"></span> Ülke
+            </NavLink>
+        </div>
+    </nav>
+</div>
+

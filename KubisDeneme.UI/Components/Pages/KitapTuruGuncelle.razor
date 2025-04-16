@@ -1,0 +1,123 @@
+﻿@page "/kitapturu-guncelle/{Id:int}"
+@using KubisDeneme.DTO
+@using System.Net.Http.Json
+@using System.Text.Json
+@using System.ComponentModel.DataAnnotations
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<h3>Kitap Türü Güncelle</h3>
+
+@if(kitapTuru is not null)
+{
+    <EditForm Model="kitapTuru" OnValidSubmit = "Guncelle">
+        <DataAnnotationsValidator/>
+        <ValidationSummary/>
+
+        <div class="form-group mb-4">
+            <label for="ad">Kitap Türü Adı</label>
+            <InputText id="ad" class="form-control" @bind-Value="kitapTuru.Ad" />
+            <ValidationMessage For="() => kitapTuru.Ad" />
+        </div>
+
+        <div class="form-group mb-4">
+            <label for="eklenmeTarihi">Eklenme Tarihi</label>
+            <InputDate id="eklenmeTarihi" class="form-control" @bind-Value="kitapTuru.EklenmeTarihi" />
+            <ValidationMessage For="() => kitapTuru.EklenmeTarihi" />
+        </div>
+        <Button Type="ButtonType.Submit" Color="ButtonColor.Primary" Size="ButtonSize.ExtraLarge">Güncelle</Button>
+    </EditForm>
+}
+
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    private KitapTuruDTO? kitapTuru = new KitapTuruDTO();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            kitapTuru = await Http.GetFromJsonAsync<KitapTuruDTO>($"api/Kitapturu/{Id}");
+            if (kitapTuru != null)
+            {
+                kitapTuru.EklenmeTarihi = kitapTuru.EklenmeTarihi?.ToLocalTime();
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Veri yükleme hatası: {ex.Message}");
+        }
+    }
+
+    private async Task Guncelle()
+    {
+        try
+        {
+            // Client tarafında UTC'ye çevirme (silinebilir)
+            if (kitapTuru.EklenmeTarihi.HasValue && kitapTuru.EklenmeTarihi.Value.Kind == DateTimeKind.Local)
+            {
+                kitapTuru.EklenmeTarihi = kitapTuru.EklenmeTarihi.Value.ToUniversalTime();
+            }
+
+            kitapTuru.GuncellenmeTarihi = DateTime.UtcNow;
+
+            var response = await Http.PutAsJsonAsync("api/Kitapturu", kitapTuru);
+
+            if (response.IsSuccessStatusCode)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Başarıyla güncellendi!");
+                NavigationManager.NavigateTo("/kitapturu-listesi");
+                return;
+            }
+
+            var errorMessage = await GetCleanErrorMessage(response);
+            await JSRuntime.InvokeVoidAsync("alert", errorMessage);
+        }
+
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Veri güncelleme hatası: {ex.Message}");
+        }
+
+    }
+
+    private async Task<string> GetCleanErrorMessage(HttpResponseMessage response)
+    {
+        var responseContent = await response.Content.ReadAsStringAsync();
+
+        try
+        {
+            using var jsonDoc = JsonDocument.Parse(responseContent);
+            var root = jsonDoc.RootElement;
+
+            var message = root.ValueKind switch
+            {
+                JsonValueKind.Object when root.TryGetProperty("errors", out var errors) =>
+                    errors.EnumerateObject().First().Value.EnumerateArray().First().GetString(),
+                JsonValueKind.Array => root.EnumerateArray().First().GetString(),
+                JsonValueKind.String => root.GetString(),
+                _ => responseContent
+            };
+
+            return CleanMessage(message);
+        }
+        catch
+        {
+            return CleanMessage(responseContent);
+        }
+    }
+
+    private string CleanMessage(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return "Bilinmeyen hata";
+
+        return message.Split("(Parameter")[0]
+                     .Trim('[', ']', '"', ' ')
+                     .Trim();
+    }
+}

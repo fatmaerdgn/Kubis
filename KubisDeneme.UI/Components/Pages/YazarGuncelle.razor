@@ -1,0 +1,158 @@
+﻿@page "/yazar-guncelle/{Id:int}"
+@using KubisDeneme.DTO
+@using System.Net.Http.Json
+@using System.Text.Json
+@using System.ComponentModel.DataAnnotations
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<h3>Yazar Güncelle</h3>
+
+@if (yazar is not null)
+{
+    <EditForm Model="yazar" OnValidSubmit="Guncelle">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+
+        <div class="form-group mb-4">
+            <label for="ad">Yazar Adı</label>
+            <InputText id="ad" class="form-control" @bind-Value="yazar.Ad" />
+            <ValidationMessage For="() => yazar.Ad" />
+        </div>
+
+        <div class="form-group mb-4">
+            <label for="isni">ISNI</label>
+            <InputText id="isbn" class="form-control" @bind-Value="yazar.ISNI" />
+            <ValidationMessage For="() => yazar.ISNI" />
+        </div>
+
+        <div class="form-group mb-4">
+            <label for="dogumTarihi">Doğum Tarihi</label>
+            <InputDate id="dogumTarihi" class="form-control" @bind-Value="yazar.DogumTarihi" />
+            <ValidationMessage For="() => yazar.DogumTarihi" />
+        </div>
+
+        <div class="form-group mb-4">
+            <label for="eklenmeTarihi">Eklenme Tarihi</label>
+            <InputDate id="eklenmeTarihi" class="form-control" @bind-Value="yazar.EklenmeTarihi" />
+            <ValidationMessage For="() => yazar.EklenmeTarihi" />
+        </div>
+
+        <div class="form-group mb-4">
+            <label for="ulke">Ülke Seç</label>
+            <div class="d-flex flex-column gap-2">
+                <select class="form-select" @bind="yazar.UlkeId">
+                    <option value=""></option>
+                    @if (_ulkeler != null)
+                    {
+                        @if (_ulkeler.Count > 0)
+                        {
+                            @foreach (var ulke in _ulkeler)
+                            {
+                                <option value="@ulke.Id">@ulke.Ad</option>
+                            }
+                        }   
+                    }
+                </select>
+                <ValidationMessage For="() => yazar.UlkeId" />
+            </div>
+        </div>
+
+        <Button Type="ButtonType.Submit" Color="ButtonColor.Primary" Size="ButtonSize.ExtraLarge">Güncelle</Button>
+    </EditForm>
+}
+
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    private YazarDTO? yazar = new YazarDTO();
+    private List<UlkeDTO>? _ulkeler = new List<UlkeDTO>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            yazar = await Http.GetFromJsonAsync<YazarDTO>($"api/Yazar/{Id}");
+            _ulkeler = await Http.GetFromJsonAsync<List<UlkeDTO>>("api/Ulke");
+
+            if (yazar != null)
+            {
+                yazar.EklenmeTarihi = yazar.EklenmeTarihi?.ToLocalTime();
+                //yazar.DogumTarihi = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Bilinmeyen hata: {ex.Message}");
+        }
+    }
+
+    private async Task Guncelle()
+    {
+        try
+        {
+            // Client tarafında UTC'ye çevirme (silinebilir)
+            if (yazar.EklenmeTarihi.HasValue && yazar.EklenmeTarihi.Value.Kind == DateTimeKind.Local)
+            {
+                yazar.EklenmeTarihi = yazar.EklenmeTarihi.Value.ToUniversalTime();
+            }
+
+            yazar.GuncellenmeTarihi = DateTime.UtcNow;
+
+            var response = await Http.PutAsJsonAsync("api/Yazar", yazar);
+
+            if (response.IsSuccessStatusCode)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Yazar başarıyla güncellendi.");
+                NavigationManager.NavigateTo("/yazar-listesi");
+                return;
+            }
+            
+            var errorMessage = await GetCleanErrorMessage(response);
+            await JSRuntime.InvokeVoidAsync("alert", errorMessage);
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"Veri güncelleme hatası: {ex.Message}");
+        }
+    }
+
+    private async Task<string> GetCleanErrorMessage(HttpResponseMessage response)
+    {
+        var responseContent = await response.Content.ReadAsStringAsync();
+
+        try
+        {
+            using var jsonDoc = JsonDocument.Parse(responseContent);
+            var root = jsonDoc.RootElement;
+
+            var message = root.ValueKind switch
+            {
+                JsonValueKind.Object when root.TryGetProperty("errors", out var errors) =>
+                    errors.EnumerateObject().First().Value.EnumerateArray().First().GetString(),
+                JsonValueKind.Array => root.EnumerateArray().First().GetString(),
+                JsonValueKind.String => root.GetString(),
+                _ => responseContent
+            };
+            
+            return CleanMessage(message);
+        }
+        catch
+        {
+            return CleanMessage(responseContent);
+        }
+    }
+
+    private string CleanMessage(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return "Bilinmeyen hata";
+
+        return message.Split("(Parameter")[0]
+                     .Trim('[', ']', '"', ' ')
+                     .Trim();
+    }
+}

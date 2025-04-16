@@ -1,0 +1,87 @@
+﻿@page "/yazar-listesi"
+@using KubisDeneme.Api.Controllers
+@using System.Net.Http.Json
+@using System.Collections.Generic
+@using KubisDeneme.DTO
+
+@inject HttpClient Http
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<h3>Yazar Listesi</h3>
+
+<Grid TItem="YazarDTO"
+      Class="table table-hover table-bordered table-striped"
+      DataProvider="YazarlarDataProvider"
+      AllowPaging="true"
+      PageSize="5"
+      Responsive="true">
+
+    <GridColumns>
+        <GridColumn TItem="YazarDTO" HeaderText="Ad">
+            @context.Ad
+        </GridColumn>
+
+        <GridColumn TItem="YazarDTO" HeaderText="ISNI">
+            @context.ISNI
+        </GridColumn>
+
+        <GridColumn TItem="YazarDTO" HeaderText="DogumTarihi">
+            @context.DogumTarihi?.ToLocalTime().ToString("dd/MM/yyyy")
+        </GridColumn>
+
+        <GridColumn TItem="YazarDTO" HeaderText="Eklenme Tarihi">
+            @context.EklenmeTarihi?.ToLocalTime().ToString("dd/MM/yyyy")
+        </GridColumn>
+
+        <GridColumn TItem="YazarDTO" HeaderText="Güncellenme Tarihi">
+            @context.GuncellenmeTarihi?.ToLocalTime().ToString("dd/MM/yyyy")
+        </GridColumn>
+
+        <!-- Ulke Adı sütunu -->
+        <GridColumn TItem="YazarDTO" HeaderText="Ülke Adı">
+            @if (context.Ulke != null)
+            {
+                @context.Ulke.Ad
+            }
+            else
+            {
+                <span></span>
+            }
+        </GridColumn>
+
+        <GridColumn TItem="YazarDTO" HeaderText="Güncelle">
+            <Button Type="ButtonType.Link" Color="ButtonColor.Primary" Size="ButtonSize.ExtraLarge" To="@($"yazar-guncelle/{context.Id}")">Güncelle</Button>
+        </GridColumn>
+    </GridColumns>
+</Grid>
+
+<div class="d-grid gap-1 mb-4">
+    <Button Type="ButtonType.Link" Color="ButtonColor.Success" Size="ButtonSize.ExtraLarge" To="/yazar-ekle">Yazar Ekle</Button>
+</div>
+
+<div class="d-grid gap-1 mb-4">
+    <Button Type="ButtonType.Link" Color="ButtonColor.Info" Size="ButtonSize.ExtraLarge" To="">Ana Sayfa</Button>
+</div>
+
+@code {
+    private List<YazarDTO>? yazarlar;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task<GridDataProviderResult<YazarDTO>> YazarlarDataProvider(GridDataProviderRequest<YazarDTO> request)
+    {
+        if (yazarlar is null)
+            yazarlar = await Http.GetFromJsonAsync<List<YazarDTO>>("api/Yazar");
+
+        return await Task.FromResult(request.ApplyTo(yazarlar));
+    }
+
+    private async Task LoadData()
+    {
+        yazarlar = await Http.GetFromJsonAsync<List<YazarDTO>>("api/Yazar");
+    }    
+}

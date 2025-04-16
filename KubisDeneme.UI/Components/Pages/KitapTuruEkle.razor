@@ -1,0 +1,95 @@
+﻿@page "/kitap-turu-ekle"
+@using KubisDeneme.DTO
+@using System.Net.Http.Json
+@using System.Text.Json;
+@using System.ComponentModel.DataAnnotations
+
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<h3>Kitap Türü Ekle</h3>
+
+<EditForm Model="@kitapturuDTO" OnValidSubmit="@HandleValidSubmit">
+    <DataAnnotationsValidator/>
+    <ValidationSummary/>
+
+    <div class="form-group mb-2">
+        <label class="form-label fw-bold" for="turAdi">Türün Adı</label>
+        <InputText id="turAdi" class="form-control" @bind-Value="kitapturuDTO.Ad" />
+        <ValidationMessage For="() => kitapturuDTO.Ad" />
+    </div>
+
+    <div class="d-grid gap-2 mt-4 mb-4">
+        <Button Color="ButtonColor.Success" Type="ButtonType.Submit" class="w-100 mt-2">Kaydet</Button>
+    </div>
+</EditForm>
+
+@code {
+    private KitapTuruDTO kitapturuDTO = new KitapTuruDTO();
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            // Client tarafında UTC'ye çevirme (silinebilir)
+            if (kitapturuDTO.EklenmeTarihi.HasValue && kitapturuDTO.EklenmeTarihi.Value.Kind == DateTimeKind.Local)
+            {
+                kitapturuDTO.EklenmeTarihi = kitapturuDTO.EklenmeTarihi.Value.ToUniversalTime();
+            }
+
+            var response = await Http.PostAsJsonAsync("api/KitapTuru/ekle", kitapturuDTO);
+
+            if (response.IsSuccessStatusCode)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "Başarıyla kaydedildi!");
+                Navigation.NavigateTo("/kitapturu-listesi");
+                return;
+            }
+
+            var errorMessage = await GetCleanErrorMessage(response);
+            await JSRuntime.InvokeVoidAsync("alert", errorMessage);
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"İstek hatası: {ex.Message}");
+        }       
+    }
+
+    private async Task<string> GetCleanErrorMessage(HttpResponseMessage response)
+    {
+        var responseContent = await response.Content.ReadAsStringAsync();
+
+        try
+        {
+            using var jsonDoc = JsonDocument.Parse(responseContent);
+            var root = jsonDoc.RootElement;
+
+            var message = root.ValueKind switch
+            {
+                JsonValueKind.Object when root.TryGetProperty("errors", out var errors) =>
+                    errors.EnumerateObject().First().Value.EnumerateArray().First().GetString(),
+                JsonValueKind.Array => root.EnumerateArray().First().GetString(),
+                JsonValueKind.String => root.GetString(),
+                _ => responseContent
+            };
+            return CleanMessage(message);
+        }
+        catch
+        {
+            return CleanMessage(responseContent);
+        }
+    }
+
+    private string CleanMessage(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return "Bilinmeyen hata";
+
+        return message.Split("(Parameter")[0]
+                     .Trim('[', ']', '"', ' ')
+                     .Trim();
+    }
+}
+
+    

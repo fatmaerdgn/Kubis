@@ -1,0 +1,220 @@
+﻿@page "/kitap-ekle"
+@using KubisDeneme.DTO
+@using System.Net.Http.Json
+@using System.Text.Json;
+@using System.ComponentModel.DataAnnotations
+
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+
+<h3>Kitap Ekle</h3>
+
+<EditForm Model="@kitapDTO" OnValidSubmit="@HandleValidSubmit">
+    <DataAnnotationsValidator />
+    <ValidationSummary />
+
+    <div class="form-group mb-2">
+        <label class="form-label fw-bold" for="kitapAdi">Kitap Adı</label>
+        <InputText id="kitapAdi" class="form-control" @bind-Value="kitapDTO.KitapAdi" />
+        <ValidationMessage For="() => kitapDTO.KitapAdi" />
+    </div>
+
+    <div class="form-group mb-2">
+        <label class="form-label fw-bold" for="sayfaSayisi">Sayfa Sayısı</label>
+        <InputNumber id="sayfaSayisi" class="form-control" @bind-Value="kitapDTO.SayfaSayisi" />
+    </div>
+
+    <div class="form-group mb-2">
+        <label class="form-label fw-bold" for="ilkYayinYili">İlk Yayın Yılı</label>
+        <InputNumber id="ilkYayinYili" class="form-control" @bind-Value="kitapDTO.İlkYayinYili" />
+        <ValidationMessage For="() => kitapDTO.İlkYayinYili" />       
+    </div>
+
+    <div class="form-group mb-2">
+        <label class="form-label fw-bold" for="isbn">ISBN</label>
+        <InputText id="isbn" class="form-control" @bind-Value="kitapDTO.ISBN" />
+        <ValidationMessage For="() => kitapDTO.ISBN" />
+    </div>
+
+    <!-- Yazar Seçimi -->
+    <div class="mb-2">
+        <label class="form-label fw-bold">Yazar Seç</label>
+        <div class="d-flex flex-column gap-2">
+            @if (seciliYazarlar != null && seciliYazarlar.Count() > 0)
+            {
+                @string.Join(" / ", seciliYazarlar.Select(yazar => _yazarlar?.FirstOrDefault(y => y.Id == yazar.YazarId)?.Ad ?? "Bilinmeyen Yazar"))
+                @foreach (var secili in seciliYazarlar)
+                {
+                    <div class="input-group">
+                        <select class="form-select" @bind="secili.YazarId">
+                            <option value="">Yazar Seçin</option>
+                            @if (_yazarlar?.Count() > 0)
+                            {
+                                @foreach (var yazar in _yazarlar)
+                                {
+                                    <option value="@yazar.Id">@yazar.Ad</option>
+                                }
+                            }
+                        </select>
+                        <Button Color="ButtonColor.Danger" Type="ButtonType.Button" class="w-100 mt-2" onclick="() => RemoveYazar(secili)">X</Button>
+                    </div>
+                }
+            }
+        </div>
+        <Button Color="ButtonColor.Primary" Type="ButtonType.Button" class="w-100 mt-2" onclick="AddYazar">Yazar Ekle</Button>
+        <ValidationMessage For="() => kitapDTO.KitapYazarlar" />
+    </div>
+
+    <!-- Kitap Türü Seçimi -->
+    <div class="mb-2">
+        <label class="form-label fw-bold">Kitap Türü Seç</label>
+        <div class="d-flex flex-column gap-2">
+            @if (seciliTurler?.Count() > 0)
+            {
+                @string.Join(" / ", seciliTurler.Select(tur => _kitapTurleri?.FirstOrDefault(y => y.Id == tur.KitapTuruId)?.Ad ?? "Bilinmeyen Tür"))
+
+                @foreach (var secili in seciliTurler)
+                {
+                    <div class="input-group">
+                        <select class="form-select" @bind="secili.KitapTuruId">
+                            <option value="">Kitap Türü Seçin</option>
+                            @if (_kitapTurleri?.Count() > 0)
+                            {
+                                @foreach (var tur in _kitapTurleri)
+                                {
+                                    <option value="@tur.Id">@tur.Ad</option>
+                                }
+                            }
+                        </select>
+                        <Button Color="ButtonColor.Danger" Type="ButtonType.Button" class="w-100 mt-2" onclick="() => RemoveTur(secili)">X</Button>
+                    </div>
+                }
+            }
+            else
+            {
+                <span class="text-muted">Henüz kitap türü eklenmedi.</span>
+            }
+        </div>
+        <Button Color="ButtonColor.Primary" Type="ButtonType.Button" class="w-100 mt-2" onclick="AddTur">Tür Ekle</Button>
+        <ValidationMessage For="() => kitapDTO.KitapKitapTurleri" />
+    </div>
+
+    <div class="d-grid gap-2 mt-4 mb-4">
+        <Button Color="ButtonColor.Success" Type="ButtonType.Submit" class="w-100 mt-2">Kaydet</Button>
+    </div>
+</EditForm>
+
+@code {
+    private KitapDTO kitapDTO = new KitapDTO();
+
+    private IEnumerable<YazarDTO>? _yazarlar;
+    private IEnumerable<KitapTuruDTO>? _kitapTurleri;
+
+    private List<KitapYazarDTO> seciliYazarlar = new List<KitapYazarDTO>();
+    private List<KitapKitapTuruDTO> seciliTurler = new List<KitapKitapTuruDTO>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _yazarlar = await Http.GetFromJsonAsync<List<YazarDTO>>("api/Yazar");
+            _kitapTurleri = await Http.GetFromJsonAsync<List<KitapTuruDTO>>("api/KitapTuru");
+        }
+        catch (HttpRequestException ex)
+        {
+            Console.WriteLine($"API isteği başarısız oldu: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Bilinmeyen hata: {ex.Message}");
+        }
+    }
+
+    private void AddYazar()
+    {
+        seciliYazarlar.Add(new KitapYazarDTO());
+    }
+
+    private void RemoveYazar(KitapYazarDTO yazar)
+    {
+        seciliYazarlar.Remove(yazar);
+    }
+
+    private void AddTur()
+    {
+        seciliTurler.Add(new KitapKitapTuruDTO());
+    }
+
+    private void RemoveTur(KitapKitapTuruDTO tur)
+    {
+        seciliTurler.Remove(tur);
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        try
+        {
+            if (kitapDTO.EklenmeTarihi.HasValue && kitapDTO.EklenmeTarihi.Value.Kind == DateTimeKind.Local)
+            {
+                kitapDTO.EklenmeTarihi = kitapDTO.EklenmeTarihi.Value.ToUniversalTime();
+            }
+
+            kitapDTO.KitapYazarlar = seciliYazarlar.Where(y => y.YazarId.HasValue).ToList(); // Sadece YazarId dolu olanları gönder
+            kitapDTO.KitapKitapTurleri = seciliTurler.Where(t => t.KitapTuruId.HasValue).ToList(); // Sadece KitapTuruId dolu olanları gönder
+
+            var response = await Http.PostAsJsonAsync("api/Kitap/ekle", kitapDTO);
+
+            if (response.IsSuccessStatusCode)
+            {
+                kitapDTO = new KitapDTO();
+                seciliYazarlar.Clear();
+                seciliTurler.Clear();
+                await JSRuntime.InvokeVoidAsync("alert", "Başarıyla kaydedildi!");
+                Navigation.NavigateTo("/kitap-listesi");
+                return;
+            }
+            var errorMessage = await GetCleanErrorMessage(response);
+            await JSRuntime.InvokeVoidAsync("alert", errorMessage);          
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", $"İstek hatası: {ex.Message}");
+        }            
+    }
+    private async Task<string> GetCleanErrorMessage(HttpResponseMessage response)
+    {
+        var resposeContent = await response.Content.ReadAsStringAsync();
+
+        try
+        {
+            using var jsonDoc = JsonDocument.Parse(resposeContent);
+            var root = jsonDoc.RootElement;
+
+            var message = root.ValueKind switch
+            {
+                JsonValueKind.Object when root.TryGetProperty("errors", out var errors) =>
+                    errors.EnumerateObject().First().Value.EnumerateArray().First().GetString(),
+                JsonValueKind.Array => root.EnumerateArray().First().GetString(),
+                JsonValueKind.String => root.GetString(),
+                _ => resposeContent
+            };
+            return CleanMessage(message);
+        }
+        catch
+        {
+            return CleanMessage(resposeContent);
+        }
+    }
+
+    private string CleanMessage(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+            return "Bilinmeyen hata";
+
+        return message.Split("(Parameter")[0]
+                     .Trim('[', ']', '"', ' ')
+                     .Trim();
+    }
+   
+} 
