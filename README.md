@@ -1,5 +1,5 @@
-# KubisDeneme
-Projeyi çalıştırmak için aşağıdaki adımları takip edebilirsiniz:
+# Kubis
+Projeyi çalıştırmak için aşağıdaki adımı takip edebilirsiniz:
 
 1. Depoyu klonlayın:  
    ```bash
